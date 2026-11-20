@@ -61,7 +61,7 @@ struct KeyboardView: View {
         let ink = look.ink
         if let code = key.code, Keyboard.bumpKeys.contains(code) {
             // Tactile bump, like on the real key. Above the bar if there is one.
-            let lift = (look.bar == nil ? 0.16 : 0.25) * u
+            let lift = (look.bar == nil ? 0.16 : 0.19) * u
             let bump = CGRect(x: rect.midX - 0.13 * u, y: rect.maxY - lift, width: 0.26 * u, height: 0.05 * u)
             context.fill(Path(roundedRect: bump, cornerRadius: 0.025 * u), with: .color(ink.opacity(0.6)))
         }
