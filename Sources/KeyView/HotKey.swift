@@ -6,8 +6,7 @@ final class HotKey {
     private var hotKeyRef: EventHotKeyRef?
     private var handlerRef: EventHandlerRef?
 
-    /// `keyCode` is a physical key (`kVK_*`), so the hotkey works in any layout.
-    init(keyCode: Int, modifiers: Int, action: @escaping () -> Void) {
+    init(action: @escaping () -> Void) {
         self.action = action
         var pressed = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         InstallEventHandler(
@@ -22,8 +21,21 @@ final class HotKey {
             Unmanaged.passUnretained(self).toOpaque(),
             &handlerRef
         )
+    }
+
+    /// Uses `shortcut` instead of the current one. `nil` turns the hotkey off.
+    /// Returns `false` if macOS refused the shortcut; then no hotkey is on.
+    @discardableResult
+    func register(_ shortcut: Shortcut?) -> Bool {
+        if let hotKeyRef { UnregisterEventHotKey(hotKeyRef) }
+        hotKeyRef = nil
+        guard let shortcut else { return true }
         let id = EventHotKeyID(signature: OSType(0x4B56_5731), id: 1) // "KVW1"
-        RegisterEventHotKey(UInt32(keyCode), UInt32(modifiers), id, GetApplicationEventTarget(), 0, &hotKeyRef)
+        var ref: EventHotKeyRef?
+        let status = RegisterEventHotKey(shortcut.keyCode, shortcut.modifiers, id, GetApplicationEventTarget(), 0, &ref)
+        guard status == noErr, let ref else { return false }
+        hotKeyRef = ref
+        return true
     }
 
     deinit {

@@ -1,9 +1,20 @@
 import Carbon.HIToolbox
 import SwiftUI
 
-/// Draws the keyboard. Everything scales with the window.
+/// Content of the keyboard window: the keyboard in the theme picked in Settings.
+struct LiveKeyboardView: View {
+    @ObservedObject var state: KeyboardState
+    @ObservedObject var settings: AppSettings
+
+    var body: some View {
+        KeyboardView(state: state, theme: settings.theme)
+    }
+}
+
+/// Draws the keyboard in one theme. Everything scales with the view.
 struct KeyboardView: View {
     @ObservedObject var state: KeyboardState
+    let theme: Theme
     @Environment(\.colorScheme) private var colorScheme
 
     /// Space around the keys, in key units.
@@ -12,7 +23,7 @@ struct KeyboardView: View {
     static let aspect = CGSize(width: Keyboard.width + 2 * padding, height: Keyboard.height + 2 * padding)
 
     var body: some View {
-        let palette = colorScheme == .dark ? Palette.dark : Palette.light
+        let palette = theme.palette(dark: colorScheme == .dark)
         Canvas { context, size in
             let unit = min(size.width / Self.aspect.width, size.height / Self.aspect.height)
             let origin = CGPoint(x: (size.width - Keyboard.width * unit) / 2,
@@ -27,39 +38,47 @@ struct KeyboardView: View {
 
     private func draw(_ key: Key, in context: GraphicsContext, unit u: CGFloat, origin: CGPoint, palette: Palette) {
         let gap = 0.05 * u
-        let radius = 0.12 * u
         let parts = key.parts.map {
             CGRect(x: origin.x + $0.minX * u, y: origin.y + $0.minY * u, width: $0.width * u, height: $0.height * u)
                 .insetBy(dx: gap, dy: gap)
         }
         let rect = parts[0]
-        let pressed = isPressed(key)
-        let fill = GraphicsContext.Shading.color(palette.fill(key.finger, pressed: pressed))
-        for part in parts {
-            context.fill(Path(roundedRect: part, cornerRadius: radius, style: .continuous), with: fill)
+        let look = theme.look(key.finger, pressed: isPressed(key), in: palette)
+        let shape = Self.shape(of: parts, radius: theme.cornerRadius * u)
+        if let fill = look.fill {
+            context.fill(shape, with: .color(fill))
         }
-        if parts.count > 1 {
-            // Join the two parts of the ISO Return into one L shape.
-            let lower = parts[1]
-            let joint = CGRect(x: lower.minX, y: rect.maxY - radius, width: lower.width, height: lower.minY - rect.maxY + 2 * radius)
-            context.fill(Path(joint), with: fill)
+        if let stroke = look.stroke {
+            context.stroke(shape, with: .color(stroke), lineWidth: 0.04 * u)
+        }
+        if let bar = look.bar {
+            let bottom = parts[parts.count - 1]
+            let line = CGRect(x: bottom.minX + 0.12 * u, y: bottom.maxY - 0.12 * u,
+                              width: bottom.width - 0.24 * u, height: 0.06 * u)
+            context.fill(Path(roundedRect: line, cornerRadius: 0.03 * u), with: .color(bar))
         }
 
-        let ink = pressed ? Color.white : palette.text
+        let ink = look.ink
         if let code = key.code, Keyboard.bumpKeys.contains(code) {
-            // Tactile bump, like on the real key.
-            let bump = CGRect(x: rect.midX - 0.13 * u, y: rect.maxY - 0.16 * u, width: 0.26 * u, height: 0.05 * u)
+            // Tactile bump, like on the real key. Above the bar if there is one.
+            let lift = (look.bar == nil ? 0.16 : 0.25) * u
+            let bump = CGRect(x: rect.midX - 0.13 * u, y: rect.maxY - lift, width: 0.26 * u, height: 0.05 * u)
             context.fill(Path(roundedRect: bump, cornerRadius: 0.025 * u), with: .color(ink.opacity(0.6)))
+        }
+
+        func text(_ string: String, size: CGFloat, design: Font.Design) -> Text {
+            Text(string).font(.system(size: size * u, weight: look.bold ? .semibold : .regular, design: design))
         }
         let center = CGPoint(x: rect.midX, y: rect.midY)
         if let label = key.fixedLabel {
-            let size = (key.rect.height < 1 ? 0.22 : 0.28) * u
-            context.draw(Text(label).font(.system(size: size)).foregroundStyle(ink), at: center)
+            // Signs like ⇪ come out too small in a monospaced font, so special keys keep the default one.
+            let size: CGFloat = key.rect.height < 1 ? 0.22 : 0.28
+            context.draw(text(label, size: size, design: .default).foregroundStyle(ink), at: center)
         } else if let code = key.code, let labels = state.labels[code] {
             let main = labels.main(shift: state.shift, caps: state.capsLock)
-            context.draw(Text(main).font(.system(size: 0.42 * u)).foregroundStyle(ink), at: center)
+            context.draw(text(main, size: 0.42, design: theme.fontDesign).foregroundStyle(ink), at: center)
             if !state.shift, let corner = labels.corner {
-                context.draw(Text(corner).font(.system(size: 0.24 * u)).foregroundStyle(ink.opacity(0.45)),
+                context.draw(text(corner, size: 0.24, design: theme.fontDesign).foregroundStyle(ink.opacity(0.45)),
                              at: CGPoint(x: rect.minX + 0.1 * u, y: rect.minY + 0.06 * u),
                              anchor: .topLeading)
             }
@@ -71,72 +90,36 @@ struct KeyboardView: View {
         if Int(code) == kVK_CapsLock { return state.capsLock } // lit while Caps Lock is on
         return state.pressed.contains(code)
     }
-}
 
-/// Key colors for light and dark mode.
-struct Palette {
-    let background: Color
-    let text: Color
-    private let soft: [Finger: Color]
-    private let strong: [Finger: Color]
-
-    func fill(_ finger: Finger, pressed: Bool) -> Color {
-        (pressed ? strong : soft)[finger] ?? .gray
+    /// Outline of a key. Two parts make the L-shaped ISO Return.
+    static func shape(of parts: [CGRect], radius: CGFloat) -> Path {
+        guard parts.count == 2 else {
+            return Path(roundedRect: parts[0], cornerRadius: radius, style: .continuous)
+        }
+        let top = parts[0]
+        let bottom = parts[1]
+        return roundedPolygon([
+            CGPoint(x: top.minX, y: top.minY), CGPoint(x: top.maxX, y: top.minY),
+            CGPoint(x: bottom.maxX, y: bottom.maxY), CGPoint(x: bottom.minX, y: bottom.maxY),
+            CGPoint(x: bottom.minX, y: top.maxY), CGPoint(x: top.minX, y: top.maxY),
+        ], radius: radius)
     }
 
-    static let light = Palette(
-        background: 0xD1D3D9, text: 0x1D1D1F, neutral: 0xF5F5F7,
-        pinky: 0xDCCBF7, ring: 0xC9DDF8, middle: 0xCDEDCB, index: 0xFAD7B0, thumb: 0xC3ECE8
-    )
-    static let dark = Palette(
-        background: 0x1C1C1E, text: 0xF2F2F7, neutral: 0x3A3A3C,
-        pinky: 0x52407A, ring: 0x2E4C75, middle: 0x2F5C3A, index: 0x7A5024, thumb: 0x245E5A
-    )
-
-    private init(background: UInt32, text: UInt32, neutral: UInt32,
-                 pinky: UInt32, ring: UInt32, middle: UInt32, index: UInt32, thumb: UInt32) {
-        self.background = RGB(background).color
-        self.text = RGB(text).color
-        let neutralRGB = RGB(neutral)
-        soft = [
-            .pinky: RGB(pinky).color,
-            .ring: RGB(ring).color,
-            .middle: RGB(middle).color,
-            .index: RGB(index).color,
-            .indexInner: RGB(index).mixed(with: neutralRGB, 0.5).color, // same color, paler
-            .thumb: RGB(thumb).color,
-            .neutral: neutralRGB.color,
-        ]
-        strong = [
-            .pinky: RGB(0x8B5CF6).color,
-            .ring: RGB(0x3B82F6).color,
-            .middle: RGB(0x22A35A).color,
-            .index: RGB(0xF08C1A).color,
-            .indexInner: RGB(0xF08C1A).color,
-            .thumb: RGB(0x14B8A6).color,
-            .neutral: RGB(0x7C7C85).color,
-        ]
+    private static func roundedPolygon(_ points: [CGPoint], radius: CGFloat) -> Path {
+        func distance(_ a: CGPoint, _ b: CGPoint) -> CGFloat { hypot(a.x - b.x, a.y - b.y) }
+        let count = points.count
+        var path = Path()
+        let last = points[count - 1]
+        path.move(to: CGPoint(x: (last.x + points[0].x) / 2, y: (last.y + points[0].y) / 2))
+        for index in 0..<count {
+            let previous = points[(index + count - 1) % count]
+            let corner = points[index]
+            let next = points[(index + 1) % count]
+            // A corner may use at most half of each side, or the arcs would overlap.
+            let r = min(radius, distance(previous, corner) / 2, distance(corner, next) / 2)
+            path.addArc(tangent1End: corner, tangent2End: next, radius: r)
+        }
+        path.closeSubpath()
+        return path
     }
-}
-
-private struct RGB {
-    var r, g, b: Double
-
-    init(_ hex: UInt32) {
-        r = Double((hex >> 16) & 0xFF) / 255
-        g = Double((hex >> 8) & 0xFF) / 255
-        b = Double(hex & 0xFF) / 255
-    }
-
-    init(r: Double, g: Double, b: Double) {
-        self.r = r
-        self.g = g
-        self.b = b
-    }
-
-    func mixed(with other: RGB, _ amount: Double) -> RGB {
-        RGB(r: r + (other.r - r) * amount, g: g + (other.g - g) * amount, b: b + (other.b - b) * amount)
-    }
-
-    var color: Color { Color(red: r, green: g, blue: b) }
 }

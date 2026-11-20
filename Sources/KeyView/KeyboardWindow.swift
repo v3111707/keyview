@@ -6,7 +6,7 @@ import SwiftUI
 final class KeyboardWindow: NSPanel {
     private static let frameName = "KeyViewWindow"
 
-    static func make(state: KeyboardState) -> KeyboardWindow {
+    static func make(state: KeyboardState, settings: AppSettings) -> KeyboardWindow {
         let aspect = KeyboardView.aspect
         let width: CGFloat = 760
         let window = KeyboardWindow(
@@ -29,7 +29,7 @@ final class KeyboardWindow: NSPanel {
         window.contentAspectRatio = aspect
         window.contentMinSize = NSSize(width: 300, height: 300 * aspect.height / aspect.width)
 
-        let hosting = KeyboardHostingView(rootView: KeyboardView(state: state))
+        let hosting = KeyboardHostingView(rootView: LiveKeyboardView(state: state, settings: settings))
         hosting.sizingOptions = [] // the window decides the size, not SwiftUI
         window.contentView = hosting
 
@@ -57,7 +57,7 @@ final class KeyboardWindow: NSPanel {
 }
 
 /// Hosts the SwiftUI keyboard. A drag anywhere on it moves the window.
-private final class KeyboardHostingView: NSHostingView<KeyboardView> {
+private final class KeyboardHostingView: NSHostingView<LiveKeyboardView> {
     override func hitTest(_ point: NSPoint) -> NSView? {
         super.hitTest(point) == nil ? nil : self
     }

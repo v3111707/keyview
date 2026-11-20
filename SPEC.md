@@ -54,12 +54,18 @@ Each key has the color of the finger that should press it.
 ## App
 
 - Menu bar icon. No Dock icon.
-- Menu: Show/Hide window, Opacity slider, Quit.
+- Menu: Show/Hide window, Opacity slider, Settings, Quit.
+
+## Settings
+
+- Opens from the menu bar icon.
+- General tab: change the hotkey.
+- Themes tab: pick how keys look: Classic, Vivid, Minimal, Outline. Light or dark still follows the system.
 
 ## Hotkey
 
 - Global hotkey shows or hides the window. Works in any app.
-- Default: ⌥⌘K.
+- Default: ⌥⌘K. Can be changed in Settings. Must use ⌘ or ⌃.
 - No special permission needed.
 
 ## Tech

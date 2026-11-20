@@ -36,12 +36,7 @@ final class LayoutReader: NSObject {
 
     /// Symbols of all layout keys for an input source. `nil` if it has no key layout.
     static func labels(for source: TISInputSource?, keyboardType: UInt32) -> [UInt16: KeyLabels]? {
-        guard let source, let raw = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else {
-            return nil
-        }
-        let data = Unmanaged<CFData>.fromOpaque(raw).takeUnretainedValue() as Data
-        return data.withUnsafeBytes { bytes -> [UInt16: KeyLabels]? in
-            guard let layout = bytes.baseAddress?.assumingMemoryBound(to: UCKeyboardLayout.self) else { return nil }
+        withLayout(of: source) { layout in
             var labels: [UInt16: KeyLabels] = [:]
             for key in Keyboard.ansi + Keyboard.iso where key.fixedLabel == nil {
                 guard let code = key.code else { continue }
@@ -56,6 +51,49 @@ final class LayoutReader: NSObject {
                 )
             }
             return labels
+        }
+    }
+
+    /// Name of a key in a shortcut: its symbol in the ASCII layout (K, 7, /) or a sign like ↩.
+    static func keyName(_ code: UInt16) -> String {
+        if let name = keyNames[Int(code)] { return name }
+        let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue()
+        let symbol = withLayout(of: source) { layout in
+            translate(code, modifiers: 0, keyboardType: UInt32(LMGetKbdType()), layout)
+        } ?? ""
+        return symbol.isEmpty ? "Key \(code)" : symbol.uppercased()
+    }
+
+    /// F1 to F20 in order.
+    static let functionKeys = [
+        kVK_F1, kVK_F2, kVK_F3, kVK_F4, kVK_F5, kVK_F6, kVK_F7, kVK_F8, kVK_F9, kVK_F10,
+        kVK_F11, kVK_F12, kVK_F13, kVK_F14, kVK_F15, kVK_F16, kVK_F17, kVK_F18, kVK_F19, kVK_F20,
+    ]
+
+    /// Keys that have no symbol in a layout.
+    private static let keyNames: [Int: String] = {
+        var names: [Int: String] = [
+            kVK_Space: "Space", kVK_Return: "↩", kVK_Tab: "⇥", kVK_Delete: "⌫", kVK_ForwardDelete: "⌦",
+            kVK_Escape: "⎋", kVK_LeftArrow: "←", kVK_RightArrow: "→", kVK_UpArrow: "↑", kVK_DownArrow: "↓",
+            kVK_Home: "↖", kVK_End: "↘", kVK_PageUp: "⇞", kVK_PageDown: "⇟", kVK_ANSI_KeypadEnter: "⌤",
+        ]
+        for (index, code) in functionKeys.enumerated() {
+            names[code] = "F\(index + 1)"
+        }
+        return names
+    }()
+
+    /// Runs `body` with the key layout of `source`. `nil` if the source has none.
+    private static func withLayout<Result>(
+        of source: TISInputSource?,
+        _ body: (UnsafePointer<UCKeyboardLayout>) -> Result
+    ) -> Result? {
+        guard let source, let raw = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else {
+            return nil
+        }
+        let data = Unmanaged<CFData>.fromOpaque(raw).takeUnretainedValue() as Data
+        return data.withUnsafeBytes { bytes in
+            bytes.baseAddress.map { body($0.assumingMemoryBound(to: UCKeyboardLayout.self)) }
         }
     }
 
