@@ -21,6 +21,7 @@ struct SettingsTests {
         #expect(settings.theme == .classic)
         #expect(settings.opacity == 1)
         #expect(settings.hotKey == .standard)
+        #expect(settings.rightIndexShade == false)
     }
 
     @Test func remembersChanges() {
@@ -30,8 +31,10 @@ struct SettingsTests {
         settings.theme = .outline
         settings.opacity = 0.5
         settings.hotKey = shortcut
+        settings.rightIndexShade = true
 
         let reloaded = AppSettings(defaults: defaults)
+        #expect(reloaded.rightIndexShade)
         #expect(reloaded.theme == .outline)
         #expect(reloaded.opacity == 0.5)
         #expect(reloaded.hotKey == shortcut)
@@ -125,17 +128,45 @@ struct SettingsTests {
     // MARK: Themes
 
     @Test func everyThemeShowsPressedKeys() {
-        let fingers: [Finger] = [.pinky, .ring, .middle, .index, .indexInner, .thumb, .neutral]
+        let fingers: [Finger] = [.pinky, .ring, .middle, .index, .indexInner, .thumb, .neutral, .indexRight, .indexInnerRight]
         for theme in Theme.allCases {
             for dark in [false, true] {
                 let palette = theme.palette(dark: dark)
                 for finger in fingers {
                     let up = theme.look(finger, pressed: false, in: palette)
                     let down = theme.look(finger, pressed: true, in: palette)
-                    #expect(up.fill != down.fill, "\(theme) \(finger) dark: \(dark)")
+                    #expect(up != down, "\(theme) \(finger) dark: \(dark)")
                 }
             }
         }
+    }
+
+    @Test func rightIndexShadeDiffersFromLeft() {
+        for theme in Theme.allCases {
+            for dark in [false, true] {
+                let palette = theme.palette(dark: dark)
+                for (left, right) in [(Finger.index, Finger.indexRight), (.indexInner, .indexInnerRight)] {
+                    let leftLook = theme.look(left, pressed: false, in: palette)
+                    let rightLook = theme.look(right, pressed: false, in: palette)
+                    #expect(leftLook != rightLook, "\(theme) \(left) dark: \(dark)")
+                }
+            }
+        }
+    }
+
+    @Test func rightIndexKeysAreTheRightIndexFinger() {
+        for kind in [KeyboardKind.ansi, .iso] {
+            let indexKeys = Keyboard.keys(kind).filter { [.index, .indexInner].contains($0.finger) }
+            let rows = Dictionary(grouping: indexKeys) { Int($0.rect.minY) }
+            for row in rows.values {
+                // Each row has 2 left and 2 right index keys; the right ones stand further right.
+                let right = row.filter { Keyboard.rightIndexKeys.contains($0.code ?? 0) }
+                let left = row.filter { !Keyboard.rightIndexKeys.contains($0.code ?? 0) }
+                #expect(right.count == 2 && left.count == 2)
+                #expect(left.map(\.rect.maxX).max()! <= right.map(\.rect.minX).min()!)
+            }
+        }
+        #expect(Keyboard.rightIndexKeys.count == 8)
     }
 
     @Test func isoReturnIsAnL() throws {

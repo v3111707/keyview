@@ -97,9 +97,14 @@ struct ThemeSettingsView: View {
     private let previewWidth: CGFloat = 230
 
     var body: some View {
-        Grid(horizontalSpacing: 16, verticalSpacing: 16) {
-            GridRow { card(.classic); card(.vivid) }
-            GridRow { card(.minimal); card(.outline) }
+        VStack(alignment: .leading, spacing: 16) {
+            Toggle("Different shades for left and right index fingers", isOn: $settings.rightIndexShade)
+            LazyVGrid(columns: [GridItem(.fixed(previewWidth), spacing: 16), GridItem(.fixed(previewWidth))],
+                      spacing: 16) {
+                ForEach(Theme.allCases) { theme in
+                    card(theme)
+                }
+            }
         }
         .padding(20)
     }
@@ -111,7 +116,7 @@ struct ThemeSettingsView: View {
             settings.theme = theme
         } label: {
             VStack(spacing: 6) {
-                KeyboardView(state: state, theme: theme)
+                KeyboardView(state: state, theme: theme, rightIndexShade: settings.rightIndexShade)
                     .frame(width: previewWidth, height: previewWidth * aspect.height / aspect.width)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(

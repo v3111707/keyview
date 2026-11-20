@@ -60,7 +60,8 @@ Each key has the color of the finger that should press it.
 
 - Opens from the menu bar icon.
 - General tab: change the hotkey.
-- Themes tab: pick how keys look: Classic, Vivid, Minimal, Outline. Light or dark still follows the system.
+- Themes tab: pick how keys look: Classic, Vivid, Minimal, Outline, Glass, Neon, Gradient, Dot. Light or dark still follows the system (Neon is always dark).
+- Themes tab: a checkbox gives the left and right index fingers different shades.
 
 ## Hotkey
 

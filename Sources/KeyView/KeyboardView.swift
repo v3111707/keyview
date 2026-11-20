@@ -7,7 +7,7 @@ struct LiveKeyboardView: View {
     @ObservedObject var settings: AppSettings
 
     var body: some View {
-        KeyboardView(state: state, theme: settings.theme)
+        KeyboardView(state: state, theme: settings.theme, rightIndexShade: settings.rightIndexShade)
     }
 }
 
@@ -15,6 +15,8 @@ struct LiveKeyboardView: View {
 struct KeyboardView: View {
     @ObservedObject var state: KeyboardState
     let theme: Theme
+    /// Right index finger in its own shade.
+    var rightIndexShade = false
     @Environment(\.colorScheme) private var colorScheme
 
     /// Space around the keys, in key units.
@@ -43,13 +45,30 @@ struct KeyboardView: View {
                 .insetBy(dx: gap, dy: gap)
         }
         let rect = parts[0]
-        let look = theme.look(key.finger, pressed: isPressed(key), in: palette)
+        let look = theme.look(finger(of: key), pressed: isPressed(key), in: palette)
         let shape = Self.shape(of: parts, radius: theme.cornerRadius * u)
+        if let glow = look.glow {
+            context.drawLayer { layer in
+                layer.addFilter(.shadow(color: glow, radius: 0.15 * u))
+                layer.stroke(shape, with: .color(glow), lineWidth: 0.04 * u)
+            }
+        }
         if let fill = look.fill {
             context.fill(shape, with: .color(fill))
         }
+        if let colors = look.gradient {
+            let bounds = shape.boundingRect
+            context.fill(shape, with: .linearGradient(Gradient(colors: colors),
+                                                      startPoint: CGPoint(x: bounds.midX, y: bounds.minY),
+                                                      endPoint: CGPoint(x: bounds.midX, y: bounds.maxY)))
+        }
         if let stroke = look.stroke {
-            context.stroke(shape, with: .color(stroke), lineWidth: 0.04 * u)
+            context.stroke(shape, with: .color(stroke), lineWidth: look.strokeWidth * u)
+        }
+        if let dot = look.dot {
+            let size = 0.12 * u
+            let circle = CGRect(x: rect.maxX - 0.1 * u - size, y: rect.minY + 0.1 * u, width: size, height: size)
+            context.fill(Path(ellipseIn: circle), with: .color(dot))
         }
         if let bar = look.bar {
             let bottom = parts[parts.count - 1]
@@ -83,6 +102,11 @@ struct KeyboardView: View {
                              anchor: .topLeading)
             }
         }
+    }
+
+    private func finger(of key: Key) -> Finger {
+        guard rightIndexShade, let code = key.code, Keyboard.rightIndexKeys.contains(code) else { return key.finger }
+        return key.finger.withRightIndexShade
     }
 
     private func isPressed(_ key: Key) -> Bool {

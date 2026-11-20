@@ -4,6 +4,17 @@ import CoreGraphics
 /// Which finger presses a key. Decides the key color.
 enum Finger {
     case pinky, ring, middle, index, indexInner, thumb, neutral
+    /// Right index finger, when it gets its own shade (Settings → Themes).
+    case indexRight, indexInnerRight
+
+    /// The same finger with the right index finger told apart from the left one.
+    var withRightIndexShade: Finger {
+        switch self {
+        case .index: return .indexRight
+        case .indexInner: return .indexInnerRight
+        default: return self
+        }
+    }
 }
 
 /// Physical layout of the keyboard the user types on.
@@ -43,6 +54,11 @@ enum Keyboard {
     static func keys(_ kind: KeyboardKind) -> [Key] {
         kind == .iso ? iso : ansi
     }
+
+    /// Keys of the right index finger.
+    static let rightIndexKeys: Set<UInt16> = Set([
+        kVK_ANSI_6, kVK_ANSI_7, kVK_ANSI_Y, kVK_ANSI_U, kVK_ANSI_H, kVK_ANSI_J, kVK_ANSI_N, kVK_ANSI_M,
+    ].map { UInt16($0) })
 
     /// Keys with a tactile bump for the index fingers (F and J).
     static let bumpKeys: Set<UInt16> = [UInt16(kVK_ANSI_F), UInt16(kVK_ANSI_J)]

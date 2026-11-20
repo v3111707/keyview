@@ -14,6 +14,7 @@ struct Shortcut: Equatable {
 final class AppSettings: ObservableObject {
     private enum Keys {
         static let theme = "theme"
+        static let rightIndexShade = "rightIndexShade"
         static let opacity = "opacity"
         static let hotKeyCode = "hotKeyCode"
         static let hotKeyModifiers = "hotKeyModifiers"
@@ -23,6 +24,11 @@ final class AppSettings: ObservableObject {
 
     @Published var theme: Theme {
         didSet { defaults.set(theme.rawValue, forKey: Keys.theme) }
+    }
+
+    /// Left and right index fingers get different shades.
+    @Published var rightIndexShade: Bool {
+        didSet { defaults.set(rightIndexShade, forKey: Keys.rightIndexShade) }
     }
 
     /// Opacity of the keyboard window, 0.2...1.
@@ -41,6 +47,7 @@ final class AppSettings: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         theme = defaults.string(forKey: Keys.theme).flatMap(Theme.init(rawValue:)) ?? .classic
+        rightIndexShade = defaults.bool(forKey: Keys.rightIndexShade)
         let savedOpacity = defaults.object(forKey: Keys.opacity) as? Double ?? 1
         opacity = min(max(savedOpacity, 0.2), 1)
         if let code = (defaults.object(forKey: Keys.hotKeyCode) as? Int).flatMap(UInt32.init(exactly:)),
