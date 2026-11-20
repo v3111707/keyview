@@ -3,12 +3,11 @@ import Foundation
 
 /// Reads key symbols from the current macOS input source and follows its changes.
 final class LayoutReader: NSObject {
-    private var onChange: (([UInt16: KeyLabels]) -> Void)?
+    private var onChange: (() -> Void)?
 
-    /// Calls `onChange` now and after every input source switch.
-    func start(onChange: @escaping ([UInt16: KeyLabels]) -> Void) {
+    /// Calls `onChange` after every input source switch.
+    func start(onChange: @escaping () -> Void) {
         self.onChange = onChange
-        onChange(Self.currentLabels())
         // The app is almost never active, so ask for immediate delivery.
         DistributedNotificationCenter.default().addObserver(
             self,
@@ -21,20 +20,22 @@ final class LayoutReader: NSObject {
 
     @objc private func inputSourceChanged() {
         DispatchQueue.main.async { [weak self] in
-            self?.onChange?(Self.currentLabels())
+            self?.onChange?()
         }
     }
 
     /// Symbols of all layout keys for the current input source. Input methods without
     /// their own key layout (for example Japanese) fall back to the ASCII layout they use.
-    static func currentLabels() -> [UInt16: KeyLabels] {
-        labels(for: TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue())
-            ?? labels(for: TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue())
+    /// `keyboardType` is a macOS keyboard type: ANSI and ISO keyboards map some keys differently.
+    static func currentLabels(keyboardType: UInt32) -> [UInt16: KeyLabels] {
+        labels(for: TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(), keyboardType: keyboardType)
+            ?? labels(for: TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
+                      keyboardType: keyboardType)
             ?? [:]
     }
 
     /// Symbols of all layout keys for an input source. `nil` if it has no key layout.
-    static func labels(for source: TISInputSource?) -> [UInt16: KeyLabels]? {
+    static func labels(for source: TISInputSource?, keyboardType: UInt32) -> [UInt16: KeyLabels]? {
         guard let source, let raw = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else {
             return nil
         }
@@ -42,20 +43,24 @@ final class LayoutReader: NSObject {
         return data.withUnsafeBytes { bytes -> [UInt16: KeyLabels]? in
             guard let layout = bytes.baseAddress?.assumingMemoryBound(to: UCKeyboardLayout.self) else { return nil }
             var labels: [UInt16: KeyLabels] = [:]
-            for key in Keyboard.keys where key.fixedLabel == nil {
+            for key in Keyboard.ansi + Keyboard.iso where key.fixedLabel == nil {
                 guard let code = key.code else { continue }
+                func symbol(_ modifiers: Int) -> String {
+                    translate(code, modifiers: modifiers, keyboardType: keyboardType, layout)
+                }
                 labels[code] = KeyLabels(
-                    base: translate(code, modifiers: 0, layout),
-                    shift: translate(code, modifiers: shiftKey, layout),
-                    caps: translate(code, modifiers: alphaLock, layout),
-                    capsShift: translate(code, modifiers: shiftKey | alphaLock, layout)
+                    base: symbol(0),
+                    shift: symbol(shiftKey),
+                    caps: symbol(alphaLock),
+                    capsShift: symbol(shiftKey | alphaLock)
                 )
             }
             return labels
         }
     }
 
-    private static func translate(_ code: UInt16, modifiers: Int, _ layout: UnsafePointer<UCKeyboardLayout>) -> String {
+    private static func translate(_ code: UInt16, modifiers: Int, keyboardType: UInt32,
+                                  _ layout: UnsafePointer<UCKeyboardLayout>) -> String {
         let maxLength = 4
         var chars = [UniChar](repeating: 0, count: maxLength)
         var length = 0
@@ -65,7 +70,7 @@ final class LayoutReader: NSObject {
             code,
             UInt16(kUCKeyActionDisplay),
             UInt32((modifiers >> 8) & 0xFF),
-            UInt32(LMGetKbdType()),
+            keyboardType,
             OptionBits(kUCKeyTranslateNoDeadKeysMask), // dead keys show their own symbol
             &deadKeyState,
             maxLength,

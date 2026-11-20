@@ -17,7 +17,7 @@ struct KeyboardView: View {
             let unit = min(size.width / Self.aspect.width, size.height / Self.aspect.height)
             let origin = CGPoint(x: (size.width - Keyboard.width * unit) / 2,
                                  y: (size.height - Keyboard.height * unit) / 2)
-            for key in Keyboard.keys {
+            for key in Keyboard.keys(state.kind) {
                 draw(key, in: context, unit: unit, origin: origin, palette: palette)
             }
         }
@@ -27,14 +27,30 @@ struct KeyboardView: View {
 
     private func draw(_ key: Key, in context: GraphicsContext, unit u: CGFloat, origin: CGPoint, palette: Palette) {
         let gap = 0.05 * u
-        let rect = CGRect(x: origin.x + key.rect.minX * u, y: origin.y + key.rect.minY * u,
-                          width: key.rect.width * u, height: key.rect.height * u)
-            .insetBy(dx: gap, dy: gap)
+        let radius = 0.12 * u
+        let parts = key.parts.map {
+            CGRect(x: origin.x + $0.minX * u, y: origin.y + $0.minY * u, width: $0.width * u, height: $0.height * u)
+                .insetBy(dx: gap, dy: gap)
+        }
+        let rect = parts[0]
         let pressed = isPressed(key)
-        context.fill(Path(roundedRect: rect, cornerRadius: 0.12 * u, style: .continuous),
-                     with: .color(palette.fill(key.finger, pressed: pressed)))
+        let fill = GraphicsContext.Shading.color(palette.fill(key.finger, pressed: pressed))
+        for part in parts {
+            context.fill(Path(roundedRect: part, cornerRadius: radius, style: .continuous), with: fill)
+        }
+        if parts.count > 1 {
+            // Join the two parts of the ISO Return into one L shape.
+            let lower = parts[1]
+            let joint = CGRect(x: lower.minX, y: rect.maxY - radius, width: lower.width, height: lower.minY - rect.maxY + 2 * radius)
+            context.fill(Path(joint), with: fill)
+        }
 
         let ink = pressed ? Color.white : palette.text
+        if let code = key.code, Keyboard.bumpKeys.contains(code) {
+            // Tactile bump, like on the real key.
+            let bump = CGRect(x: rect.midX - 0.13 * u, y: rect.maxY - 0.16 * u, width: 0.26 * u, height: 0.05 * u)
+            context.fill(Path(roundedRect: bump, cornerRadius: 0.025 * u), with: .color(ink.opacity(0.6)))
+        }
         let center = CGPoint(x: rect.midX, y: rect.midY)
         if let label = key.fixedLabel {
             let size = (key.rect.height < 1 ? 0.22 : 0.28) * u

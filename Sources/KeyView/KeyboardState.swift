@@ -29,6 +29,7 @@ struct KeyLabels: Equatable {
 
 /// Everything the keyboard view shows.
 final class KeyboardState: ObservableObject {
+    @Published var kind: KeyboardKind = .ansi
     @Published var labels: [UInt16: KeyLabels] = [:]
     @Published var pressed: Set<UInt16> = []
     @Published var shift = false

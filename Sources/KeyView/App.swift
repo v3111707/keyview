@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var toggleItem: NSMenuItem!
     private var hotKey: HotKey?
+    private var keyboardType = UInt32(LMGetKbdType())
 
     static func main() {
         let app = NSApplication.shared
@@ -26,12 +27,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window = KeyboardWindow.make(state: state)
         window.alphaValue = Self.savedOpacity()
         setUpMenu()
-        layoutReader.start { [state] labels in state.labels = labels }
+        refreshKeyboard()
+        layoutReader.start { [weak self] in self?.refreshKeyboard() }
+        keyMonitor.onKeyboardType = { [weak self] type in
+            self?.keyboardType = type
+            self?.refreshKeyboard()
+        }
         keyMonitor.start()
         hotKey = HotKey(keyCode: kVK_ANSI_K, modifiers: cmdKey | optionKey) { [weak self] in
             self?.toggleWindow()
         }
         showWindow()
+    }
+
+    /// Picks ANSI or ISO and reads the symbols of the current layout.
+    private func refreshKeyboard() {
+        let kind = KeyboardKind(keyboardType: keyboardType)
+        if state.kind != kind { state.kind = kind }
+        state.labels = LayoutReader.currentLabels(keyboardType: keyboardType)
     }
 
     // MARK: Window
@@ -45,6 +58,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showWindow() {
+        // Without Input Monitoring this is the only way to notice another keyboard.
+        keyboardType = UInt32(LMGetKbdType())
+        refreshKeyboard()
         window.orderFrontRegardless()
         keyMonitor.setEnabled(true)
         toggleItem.title = "Hide Window"

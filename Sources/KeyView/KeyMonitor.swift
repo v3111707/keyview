@@ -7,6 +7,10 @@ final class KeyMonitor {
     private let state: KeyboardState
     private var tap: CFMachPort?
     private var enabled = false
+    private var keyboardType: UInt32 = 0
+
+    /// Called when the user types on a keyboard of another type (macOS keyboard type).
+    var onKeyboardType: ((UInt32) -> Void)?
 
     /// Device-dependent flag bits (NX_DEVICE*KEYMASK in IOLLEvent.h) tell left and right modifiers apart.
     private static let modifierBits: [Int: UInt64] = [
@@ -60,6 +64,11 @@ final class KeyMonitor {
         let code = UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode))
         switch type {
         case .keyDown:
+            let type = UInt32(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeyboardType))
+            if type != 0 && type != keyboardType {
+                keyboardType = type
+                onKeyboardType?(type)
+            }
             if !state.pressed.contains(code) { state.pressed.insert(code) }
         case .keyUp:
             if state.pressed.contains(code) { state.pressed.remove(code) }

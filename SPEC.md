@@ -7,7 +7,8 @@ Each key has the color of the finger that should press it.
 
 ## Keyboard
 
-- MacBook ANSI layout. No numpad.
+- MacBook layout, ANSI or ISO. No numpad.
+- The app shows the type of the keyboard the user types on (also an external one).
 - Rows: function row, number row, 3 letter rows, bottom row with modifiers and Space.
 
 ## Key labels
@@ -24,6 +25,7 @@ Each key has the color of the finger that should press it.
 - Index finger: the inner column (5 T G B, 6 Y H N) uses a lighter shade of the index color.
 - Modifiers, function row: neutral color.
 - Space: thumb color.
+- F and J show their tactile bump.
 
 | Finger | Left hand        | Right hand                          |
 |--------|------------------|-------------------------------------|
