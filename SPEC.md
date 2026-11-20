@@ -54,6 +54,12 @@ Each key has the color of the finger that should press it.
 - Menu bar icon. No Dock icon.
 - Menu: Show/Hide window, Opacity slider, Quit.
 
+## Hotkey
+
+- Global hotkey shows or hides the window. Works in any app.
+- Default: ⌥⌘K.
+- No special permission needed.
+
 ## Tech
 
 - Swift, SwiftUI + AppKit.
