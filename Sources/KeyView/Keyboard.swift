@@ -47,6 +47,27 @@ enum Keyboard {
     /// Keys with a tactile bump for the index fingers (F and J).
     static let bumpKeys: Set<UInt16> = [UInt16(kVK_ANSI_F), UInt16(kVK_ANSI_J)]
 
+    /// With fn held some keys send another code: fn+← sends Home and so on.
+    /// Maps the sent code to the key that was pressed.
+    static let fnCodes: [UInt16: UInt16] = [
+        UInt16(kVK_Home): UInt16(kVK_LeftArrow),
+        UInt16(kVK_End): UInt16(kVK_RightArrow),
+        UInt16(kVK_PageUp): UInt16(kVK_UpArrow),
+        UInt16(kVK_PageDown): UInt16(kVK_DownArrow),
+        UInt16(kVK_ForwardDelete): UInt16(kVK_Delete),
+        UInt16(kVK_ANSI_KeypadEnter): UInt16(kVK_Return),
+    ]
+
+    /// The drawn key that sends `code`.
+    static func pressedKey(for code: UInt16) -> UInt16 {
+        fnCodes[code] ?? code
+    }
+
+    /// All codes the drawn key `key` can send.
+    static func codes(sentBy key: UInt16) -> [UInt16] {
+        [key] + fnCodes.filter { $0.value == key }.map(\.key)
+    }
+
     private typealias Item = (code: Int?, finger: Finger, width: CGFloat, label: String?)
 
     private static func key(_ code: Int, _ finger: Finger) -> Item {

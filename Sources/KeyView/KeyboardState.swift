@@ -29,9 +29,13 @@ struct KeyLabels: Equatable {
 
 /// Everything the keyboard view shows.
 final class KeyboardState: ObservableObject {
-    @Published var kind: KeyboardKind = .ansi
+    /// macOS type of the keyboard the user types on. This is the only place that keeps it.
+    /// It decides ANSI or ISO and which symbols some keys give.
+    @Published var keyboardType: UInt32 = 0
     @Published var labels: [UInt16: KeyLabels] = [:]
     @Published var pressed: Set<UInt16> = []
     @Published var shift = false
     @Published var capsLock = false
+
+    var kind: KeyboardKind { KeyboardKind(keyboardType: keyboardType) }
 }
