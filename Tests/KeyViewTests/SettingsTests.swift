@@ -23,6 +23,8 @@ struct SettingsTests {
         #expect(settings.hotKey == .standard)
         #expect(settings.rightIndexShade == false)
         #expect(settings.showInputSource)
+        #expect(settings.backgroundTransparency == 0)
+        #expect(settings.backgroundOpacity == 1)
     }
 
     @Test func remembersChanges() {
@@ -41,6 +43,21 @@ struct SettingsTests {
         #expect(reloaded.theme == .outline)
         #expect(reloaded.opacity == 0.5)
         #expect(reloaded.hotKey == shortcut)
+    }
+
+    @Test func backgroundTransparencyIsSavedAndChecked() {
+        defer { cleanUp() }
+        let settings = AppSettings(defaults: defaults)
+        settings.backgroundTransparency = 50
+        let reloaded = AppSettings(defaults: defaults)
+        #expect(reloaded.backgroundTransparency == 50)
+        #expect(reloaded.backgroundOpacity == 0.5)
+
+        reloaded.backgroundTransparency = 100
+        #expect(reloaded.backgroundOpacity == 0)
+
+        defaults.set(33, forKey: "backgroundTransparency") // not one of the choices
+        #expect(AppSettings(defaults: defaults).backgroundTransparency == 0)
     }
 
     @Test func keepsOpacityInRange() {

@@ -59,9 +59,10 @@ Each key has the color of the finger that should press it.
 ## Settings
 
 - Opens from the menu bar icon.
-- General tab: change the hotkey; show the input source in the menu bar; start at login (off by default).
+- General tab: start at login (off by default), change the hotkey, show the input source in the menu bar.
 - Themes tab: pick how keys look: Classic, Vivid, Minimal, Outline, Glass, Neon, Gradient, Dot. Light or dark still follows the system (Neon is always dark).
 - Themes tab: a checkbox gives the left and right index fingers different shades.
+- Themes tab: background transparency 0, 20, 50, 75, 100 %, on top of the window opacity. Keys keep the window opacity.
 
 ## Input source indicator
 

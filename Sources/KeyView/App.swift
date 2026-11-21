@@ -39,6 +39,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .dropFirst()
             .sink { [weak self] show in self?.updateStatusIcon(showInputSource: show) }
             .store(in: &subscriptions)
+        settings.$backgroundTransparency
+            .dropFirst()
+            .receive(on: RunLoop.main) // after the keyboard is drawn with the new value
+            .sink { [weak self] _ in self?.window.invalidateShadow() }
+            .store(in: &subscriptions)
         state.keyboardType = UInt32(LMGetKbdType())
         refreshLabels()
         layoutReader.start { [weak self] in

@@ -21,6 +21,12 @@ final class KeyboardWindow: NSPanel {
         for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
             window.standardWindowButton(button)?.isHidden = true
         }
+        // Only drawn pixels show, so the background behind the keys can be made transparent.
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        // Without this macOS lets clicks through transparent places. Clicks must stay in the window,
+        // and a drag between the keys must move it.
+        window.ignoresMouseEvents = false
         window.isFloatingPanel = true
         window.level = .floating
         window.hidesOnDeactivate = false

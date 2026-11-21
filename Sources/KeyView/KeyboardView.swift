@@ -7,7 +7,8 @@ struct LiveKeyboardView: View {
     @ObservedObject var settings: AppSettings
 
     var body: some View {
-        KeyboardView(state: state, theme: settings.theme, rightIndexShade: settings.rightIndexShade)
+        KeyboardView(state: state, theme: settings.theme, rightIndexShade: settings.rightIndexShade,
+                     backgroundOpacity: settings.backgroundOpacity)
     }
 }
 
@@ -17,6 +18,8 @@ struct KeyboardView: View {
     let theme: Theme
     /// Right index finger in its own shade.
     var rightIndexShade = false
+    /// Opacity of the background behind the keys. The keys stay as they are.
+    var backgroundOpacity: Double = 1
     @Environment(\.colorScheme) private var colorScheme
 
     /// Space around the keys, in key units.
@@ -34,7 +37,9 @@ struct KeyboardView: View {
                 draw(key, in: context, unit: unit, origin: origin, palette: palette)
             }
         }
-        .background(palette.background)
+        .background {
+            palette.background.opacity(backgroundOpacity)
+        }
         .ignoresSafeArea()
     }
 

@@ -16,6 +16,7 @@ final class AppSettings: ObservableObject {
         static let theme = "theme"
         static let rightIndexShade = "rightIndexShade"
         static let showInputSource = "showInputSource"
+        static let backgroundTransparency = "backgroundTransparency"
         static let opacity = "opacity"
         static let hotKeyCode = "hotKeyCode"
         static let hotKeyModifiers = "hotKeyModifiers"
@@ -37,6 +38,18 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(showInputSource, forKey: Keys.showInputSource) }
     }
 
+    /// Choices for `backgroundTransparency`, in percent.
+    static let backgroundTransparencyOptions = [0, 20, 50, 75, 100]
+
+    /// How much more transparent the background behind the keys is than the keys, in percent.
+    /// On top of `opacity`: 50 % with opacity 0.8 gives the background 0.4.
+    @Published var backgroundTransparency: Int {
+        didSet { defaults.set(backgroundTransparency, forKey: Keys.backgroundTransparency) }
+    }
+
+    /// Opacity of the background relative to the keys, 0...1.
+    var backgroundOpacity: Double { 1 - Double(backgroundTransparency) / 100 }
+
     /// Opacity of the keyboard window, 0.2...1.
     @Published var opacity: Double {
         didSet { defaults.set(opacity, forKey: Keys.opacity) }
@@ -55,6 +68,8 @@ final class AppSettings: ObservableObject {
         theme = defaults.string(forKey: Keys.theme).flatMap(Theme.init(rawValue:)) ?? .classic
         rightIndexShade = defaults.bool(forKey: Keys.rightIndexShade)
         showInputSource = defaults.object(forKey: Keys.showInputSource) as? Bool ?? true
+        let savedTransparency = defaults.integer(forKey: Keys.backgroundTransparency)
+        backgroundTransparency = Self.backgroundTransparencyOptions.contains(savedTransparency) ? savedTransparency : 0
         let savedOpacity = defaults.object(forKey: Keys.opacity) as? Double ?? 1
         opacity = min(max(savedOpacity, 0.2), 1)
         if let code = (defaults.object(forKey: Keys.hotKeyCode) as? Int).flatMap(UInt32.init(exactly:)),

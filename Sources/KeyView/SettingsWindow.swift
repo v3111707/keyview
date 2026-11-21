@@ -54,7 +54,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     }
 }
 
-/// Settings → General: the hotkey.
+/// Settings → General: start at login, the hotkey, the input source indicator.
 struct GeneralSettingsView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var recorder: ShortcutRecorder
@@ -62,69 +62,80 @@ struct GeneralSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                Text("Show or hide the keyboard:")
-                Button {
-                    if recorder.isRecording {
-                        recorder.cancel()
-                    } else {
-                        recorder.start()
-                    }
-                } label: {
-                    Text(recorder.isRecording ? "Type shortcut…" : settings.hotKey.displayString)
-                        .frame(minWidth: 110)
-                }
-                Button("Reset") {
-                    recorder.use(.standard)
-                }
-                .disabled(settings.hotKey == .standard || recorder.isRecording)
-            }
-            Text(hint)
-                .font(.callout)
-                .foregroundStyle(recorder.message == nil ? Color.secondary : Color.red)
-
+            loginSection
             Divider()
                 .padding(.vertical, 6)
-
-            Toggle("Show input source in the menu bar", isOn: $settings.showInputSource)
-            Text("The KeyView icon shows the current layout, like РУ or EN. Click it to switch layouts. "
-                 + "The macOS indicator can then be turned off: System Settings → Keyboard → Text Input → "
-                 + "Edit… → “Show Input menu in menu bar”.")
-                .font(.callout)
-                .foregroundStyle(Color.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
+            hotKeySection
             Divider()
                 .padding(.vertical, 6)
-
-            Toggle("Start at login", isOn: Binding(
-                get: { loginItem.isEnabled },
-                set: { loginItem.setEnabled($0) }
-            ))
-            if let message = loginItem.message {
-                Text(message)
-                    .font(.callout)
-                    .foregroundStyle(Color.red)
-            } else if loginItem.needsApproval {
-                HStack {
-                    Text("Allow KeyView in System Settings → General → Login Items.")
-                        .font(.callout)
-                        .foregroundStyle(Color.secondary)
-                    Button("Open Login Items") {
-                        SMAppService.openSystemSettingsLoginItems()
-                    }
-                }
-            }
-            if !Bundle.main.bundlePath.contains("/Applications/") {
-                Text("KeyView runs from \(Bundle.main.bundleURL.deletingLastPathComponent().path). "
-                     + "Move it to Applications first, or login start will open this copy.")
-                    .font(.callout)
-                    .foregroundStyle(Color.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            inputSourceSection
         }
         .padding(20)
         .frame(width: 480, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var loginSection: some View {
+        Toggle("Start at login", isOn: Binding(
+            get: { loginItem.isEnabled },
+            set: { loginItem.setEnabled($0) }
+        ))
+        if let message = loginItem.message {
+            Text(message)
+                .font(.callout)
+                .foregroundStyle(Color.red)
+        } else if loginItem.needsApproval {
+            HStack {
+                Text("Allow KeyView in System Settings → General → Login Items.")
+                    .font(.callout)
+                    .foregroundStyle(Color.secondary)
+                Button("Open Login Items") {
+                    SMAppService.openSystemSettingsLoginItems()
+                }
+            }
+        }
+        if !Bundle.main.bundlePath.contains("/Applications/") {
+            Text("KeyView runs from \(Bundle.main.bundleURL.deletingLastPathComponent().path). "
+                 + "Move it to Applications first, or login start will open this copy.")
+                .font(.callout)
+                .foregroundStyle(Color.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private var hotKeySection: some View {
+        HStack(spacing: 12) {
+            Text("Show or hide the keyboard:")
+            Button {
+                if recorder.isRecording {
+                    recorder.cancel()
+                } else {
+                    recorder.start()
+                }
+            } label: {
+                Text(recorder.isRecording ? "Type shortcut…" : settings.hotKey.displayString)
+                    .frame(minWidth: 110)
+            }
+            Button("Reset") {
+                recorder.use(.standard)
+            }
+            .disabled(settings.hotKey == .standard || recorder.isRecording)
+        }
+        Text(hint)
+            .font(.callout)
+            .foregroundStyle(recorder.message == nil ? Color.secondary : Color.red)
+    }
+
+    @ViewBuilder
+    private var inputSourceSection: some View {
+        Toggle("Show input source in the menu bar", isOn: $settings.showInputSource)
+        Text("The KeyView icon shows the current layout, like РУ or EN. Click it to switch layouts. "
+             + "The macOS indicator can then be turned off: System Settings → Keyboard → Text Input → "
+             + "Edit… → “Show Input menu in menu bar”.")
+            .font(.callout)
+            .foregroundStyle(Color.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var hint: String {
@@ -143,6 +154,18 @@ struct ThemeSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Picker("Background transparency:", selection: $settings.backgroundTransparency) {
+                    ForEach(AppSettings.backgroundTransparencyOptions, id: \.self) { percent in
+                        Text("\(percent) %").tag(percent)
+                    }
+                }
+                .pickerStyle(.menu)
+                .fixedSize()
+                Text("Relative to Opacity in the menu: keys keep it, the background gets more transparent.")
+                    .font(.callout)
+                    .foregroundStyle(Color.secondary)
+            }
             Toggle("Different shades for left and right index fingers", isOn: $settings.rightIndexShade)
             LazyVGrid(columns: [GridItem(.fixed(previewWidth), spacing: 16), GridItem(.fixed(previewWidth))],
                       spacing: 16) {
@@ -161,7 +184,8 @@ struct ThemeSettingsView: View {
             settings.theme = theme
         } label: {
             VStack(spacing: 6) {
-                KeyboardView(state: state, theme: theme, rightIndexShade: settings.rightIndexShade)
+                KeyboardView(state: state, theme: theme, rightIndexShade: settings.rightIndexShade,
+                             backgroundOpacity: settings.backgroundOpacity)
                     .frame(width: previewWidth, height: previewWidth * aspect.height / aspect.width)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(
