@@ -22,6 +22,7 @@ struct SettingsTests {
         #expect(settings.opacity == 1)
         #expect(settings.hotKey == .standard)
         #expect(settings.rightIndexShade == false)
+        #expect(settings.showInputSource)
     }
 
     @Test func remembersChanges() {
@@ -32,8 +33,10 @@ struct SettingsTests {
         settings.opacity = 0.5
         settings.hotKey = shortcut
         settings.rightIndexShade = true
+        settings.showInputSource = false
 
         let reloaded = AppSettings(defaults: defaults)
+        #expect(reloaded.showInputSource == false)
         #expect(reloaded.rightIndexShade)
         #expect(reloaded.theme == .outline)
         #expect(reloaded.opacity == 0.5)
@@ -167,6 +170,32 @@ struct SettingsTests {
             }
         }
         #expect(Keyboard.rightIndexKeys.count == 8)
+    }
+
+    // MARK: Input source indicator
+
+    @Test func shortNameLikeMacOS() {
+        #expect(InputSource.shortName(language: "ru", name: "Russian") == "РУ")
+        #expect(InputSource.shortName(language: "en", name: "ABC") == "EN")
+        #expect(InputSource.shortName(language: "uk", name: "Ukrainian") == "УК")
+        #expect(InputSource.shortName(language: "de", name: "German") == "DE")
+        #expect(InputSource.shortName(language: nil, name: "Pinyin") == "PI")
+    }
+
+    @Test func installedRussianLayoutShowsRU() throws {
+        let filter = [kTISPropertyInputSourceID as String: "com.apple.keylayout.Russian"] as CFDictionary
+        let list = TISCreateInputSourceList(filter, true)?.takeRetainedValue() as? [TISInputSource]
+        let source = InputSource(try #require(list?.first))
+        #expect(source.shortName == "РУ")
+        #expect(source.id == "com.apple.keylayout.Russian")
+    }
+
+    @Test func badgeIsTemplateImage() {
+        let short = InputSource.badge("EN")
+        let long = InputSource.badge("РУС")
+        #expect(short.isTemplate)
+        #expect(short.size.height == 16)
+        #expect(long.size.width > short.size.width)
     }
 
     @Test func isoReturnIsAnL() throws {

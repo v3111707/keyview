@@ -59,9 +59,16 @@ Each key has the color of the finger that should press it.
 ## Settings
 
 - Opens from the menu bar icon.
-- General tab: change the hotkey.
+- General tab: change the hotkey; show the input source in the menu bar.
 - Themes tab: pick how keys look: Classic, Vivid, Minimal, Outline, Glass, Neon, Gradient, Dot. Light or dark still follows the system (Neon is always dark).
 - Themes tab: a checkbox gives the left and right index fingers different shades.
+
+## Input source indicator
+
+- The menu bar icon can show the current input source, like the macOS indicator: РУ, EN.
+- It changes at once when the user switches the input source.
+- Its menu lists the input sources and switches them, so the macOS indicator can be turned off.
+- On by default. Turned off in Settings → General; then the icon is a keyboard.
 
 ## Hotkey
 

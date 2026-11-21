@@ -77,6 +77,17 @@ struct GeneralSettingsView: View {
             Text(hint)
                 .font(.callout)
                 .foregroundStyle(recorder.message == nil ? Color.secondary : Color.red)
+
+            Divider()
+                .padding(.vertical, 6)
+
+            Toggle("Show input source in the menu bar", isOn: $settings.showInputSource)
+            Text("The KeyView icon shows the current layout, like РУ or EN. Click it to switch layouts. "
+                 + "The macOS indicator can then be turned off: System Settings → Keyboard → Text Input → "
+                 + "Edit… → “Show Input menu in menu bar”.")
+                .font(.callout)
+                .foregroundStyle(Color.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(20)
         .frame(width: 480, alignment: .leading)

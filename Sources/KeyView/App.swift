@@ -1,9 +1,10 @@
 import AppKit
 import Carbon.HIToolbox
+import Combine
 
 @main
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let state = KeyboardState()
     private let settings = AppSettings()
     private let recorder = ShortcutRecorder()
@@ -14,6 +15,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: KeyboardWindow!
     private var statusItem: NSStatusItem!
     private var toggleItem: NSMenuItem!
+    /// Input sources at the top of the menu. Rebuilt each time the menu opens.
+    private var inputSourceItems: [NSMenuItem] = []
+    private var subscriptions: Set<AnyCancellable> = []
 
     static func main() {
         let app = NSApplication.shared
@@ -27,9 +31,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window = KeyboardWindow.make(state: state, settings: settings)
         window.alphaValue = settings.opacity
         setUpMenu()
+        updateStatusIcon()
+        settings.$showInputSource
+            .dropFirst()
+            .sink { [weak self] show in self?.updateStatusIcon(showInputSource: show) }
+            .store(in: &subscriptions)
         state.keyboardType = UInt32(LMGetKbdType())
         refreshLabels()
-        layoutReader.start { [weak self] in self?.refreshLabels() }
+        layoutReader.start { [weak self] in
+            self?.refreshLabels()
+            self?.updateStatusIcon()
+        }
         keyMonitor.onKeyboardTypeChange = { [weak self] in self?.refreshLabels() }
         keyMonitor.start()
         setUpHotKey()
@@ -107,11 +119,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setUpMenu() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        let icon = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "KeyView")
-        icon?.isTemplate = true
-        statusItem.button?.image = icon
 
         let menu = NSMenu()
+        menu.delegate = self
         toggleItem = NSMenuItem(title: "Hide Window", action: #selector(toggleWindow), keyEquivalent: "")
         toggleItem.target = self
         menu.addItem(toggleItem)
@@ -128,6 +138,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(settingsItem)
         menu.addItem(NSMenuItem(title: "Quit KeyView", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
+    }
+
+    /// The keyboard icon, or the current input source if the user wants it instead of the macOS indicator.
+    /// `showInputSource` is the new value while the setting is being changed.
+    private func updateStatusIcon(showInputSource: Bool? = nil) {
+        guard let button = statusItem.button else { return }
+        if showInputSource ?? settings.showInputSource, let current = InputSource.current() {
+            statusItem.length = NSStatusItem.variableLength
+            button.image = InputSource.badge(current.shortName)
+            button.toolTip = current.name
+        } else {
+            statusItem.length = NSStatusItem.squareLength
+            let icon = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "KeyView")
+            icon?.isTemplate = true
+            button.image = icon
+            button.toolTip = "KeyView"
+        }
+    }
+
+    /// Lists the input sources at the top of the menu, so the macOS indicator can be turned off.
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        inputSourceItems.forEach(menu.removeItem)
+        inputSourceItems = []
+        guard settings.showInputSource else { return }
+        let sources = InputSource.enabled()
+        guard sources.count > 1 else { return }
+        let currentID = InputSource.current()?.id
+        var items: [NSMenuItem] = [.sectionHeader(title: "Input Source")]
+        for source in sources {
+            let item = NSMenuItem(title: source.name, action: #selector(selectInputSource(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = source.id
+            item.image = InputSource.badge(source.shortName, height: 14)
+            item.state = source.id == currentID ? .on : .off
+            items.append(item)
+        }
+        items.append(.separator())
+        for (index, item) in items.enumerated() {
+            menu.insertItem(item, at: index)
+        }
+        inputSourceItems = items
+    }
+
+    @objc private func selectInputSource(_ item: NSMenuItem) {
+        guard let id = item.representedObject as? String else { return }
+        InputSource.enabled().first { $0.id == id }?.select()
     }
 
     @objc private func openSettings() {
