@@ -8,10 +8,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let state = KeyboardState()
     private let settings = AppSettings()
     private let recorder = ShortcutRecorder()
+    private let loginItem = LoginItem()
     private let layoutReader = LayoutReader()
     private lazy var keyMonitor = KeyMonitor(state: state)
     private lazy var hotKey = HotKey { [weak self] in self?.toggleWindow() }
-    private lazy var settingsWindow = SettingsWindowController(settings: settings, recorder: recorder, state: state)
+    private lazy var settingsWindow = SettingsWindowController(
+        settings: settings, recorder: recorder, loginItem: loginItem, state: state
+    )
     private var window: KeyboardWindow!
     private var statusItem: NSStatusItem!
     private var toggleItem: NSMenuItem!

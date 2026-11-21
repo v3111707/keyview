@@ -1,17 +1,20 @@
 import AppKit
+import ServiceManagement
 import SwiftUI
 
 /// Settings window with two tabs: General and Themes. Opens from the menu bar icon.
 @MainActor
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private let recorder: ShortcutRecorder
+    private let loginItem: LoginItem
 
-    init(settings: AppSettings, recorder: ShortcutRecorder, state: KeyboardState) {
+    init(settings: AppSettings, recorder: ShortcutRecorder, loginItem: LoginItem, state: KeyboardState) {
         self.recorder = recorder
+        self.loginItem = loginItem
         let tabs = NSTabViewController()
         tabs.tabStyle = .toolbar
         tabs.addTabViewItem(Self.tab("General", symbol: "gearshape",
-                                     GeneralSettingsView(settings: settings, recorder: recorder)))
+                                     GeneralSettingsView(settings: settings, recorder: recorder, loginItem: loginItem)))
         tabs.addTabViewItem(Self.tab("Themes", symbol: "paintpalette",
                                      ThemeSettingsView(settings: settings, state: state)))
         let window = NSWindow(contentViewController: tabs)
@@ -38,6 +41,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func show() {
+        loginItem.refresh() // the user may have changed it in System Settings
         NSApp.activate()
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
@@ -54,6 +58,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 struct GeneralSettingsView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var recorder: ShortcutRecorder
+    @ObservedObject var loginItem: LoginItem
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -88,6 +93,35 @@ struct GeneralSettingsView: View {
                 .font(.callout)
                 .foregroundStyle(Color.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Divider()
+                .padding(.vertical, 6)
+
+            Toggle("Start at login", isOn: Binding(
+                get: { loginItem.isEnabled },
+                set: { loginItem.setEnabled($0) }
+            ))
+            if let message = loginItem.message {
+                Text(message)
+                    .font(.callout)
+                    .foregroundStyle(Color.red)
+            } else if loginItem.needsApproval {
+                HStack {
+                    Text("Allow KeyView in System Settings → General → Login Items.")
+                        .font(.callout)
+                        .foregroundStyle(Color.secondary)
+                    Button("Open Login Items") {
+                        SMAppService.openSystemSettingsLoginItems()
+                    }
+                }
+            }
+            if !Bundle.main.bundlePath.contains("/Applications/") {
+                Text("KeyView runs from \(Bundle.main.bundleURL.deletingLastPathComponent().path). "
+                     + "Move it to Applications first, or login start will open this copy.")
+                    .font(.callout)
+                    .foregroundStyle(Color.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(20)
         .frame(width: 480, alignment: .leading)
