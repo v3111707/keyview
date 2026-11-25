@@ -2,6 +2,8 @@
 
 A small macOS menu bar app that shows your keyboard layout in a floating window. Each key is colored by the finger that should press it.
 
+![KeyView window with the Neon theme](docs/screenshot.png)
+
 > [!WARNING]
 > This code was written entirely by an LLM (Claude) and has **not been reviewed by a human**.
 > It may contain bugs or security issues. Read the code before you run it, and use it at your own risk.
