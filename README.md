@@ -2,6 +2,8 @@
 
 A small macOS menu bar app that shows your keyboard layout in a floating window. Each key is colored by the finger that should press it.
 
+Use it when you need a quick look at where a key is. Press the hotkey (<kbd>⌥</kbd><kbd>⌘</kbd><kbd>K</kbd> by default) to show the keyboard, press it again to hide it. Move and resize the window and set its opacity to fit your screen.
+
 ![KeyView window with the Neon theme](docs/screenshot.png)
 
 > [!WARNING]
