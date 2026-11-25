@@ -29,7 +29,7 @@ A small macOS menu bar app that shows your keyboard layout in a floating window.
 There are no prebuilt binaries. Build the app from source:
 
 ```sh
-git clone https://github.com/<your-username>/keyview.git
+git clone https://github.com/v3111707/keyview.git
 cd keyview
 ./build.sh
 cp -R build/KeyView.app /Applications/
