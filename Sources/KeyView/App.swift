@@ -78,6 +78,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         refreshLabels()
         window.orderFrontRegardless()
+        keyMonitor.restartIfAccessGranted() // the user may have granted Input Monitoring by now
         keyMonitor.setEnabled(true)
         toggleItem.title = "Hide Window"
     }

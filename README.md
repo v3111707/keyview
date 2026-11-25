@@ -21,7 +21,8 @@ A small macOS menu bar app that shows your keyboard layout in a floating window.
 ## Requirements
 
 - macOS 14 Sonoma or later
-- Swift 5.10 or later: Xcode, or just the Command Line Tools (`xcode-select --install`). Xcode is not required.
+- Swift 5.10 or later to build: Xcode, or just the Command Line Tools (`xcode-select --install`). Xcode is not required.
+- Swift 6.0 or later (Xcode 16 or recent Command Line Tools) to run the tests: they use the Swift Testing framework.
 
 ## Installation
 

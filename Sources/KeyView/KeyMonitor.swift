@@ -7,6 +7,10 @@ import Foundation
 final class KeyMonitor {
     private let state: KeyboardState
     private var tap: CFMachPort?
+    private var tapSource: CFRunLoopSource?
+    /// Input Monitoring was granted when the tap was made. A tap made without it stays dead
+    /// even after the user grants it, so it has to be made again.
+    private var hadAccess = false
     private var enabled = false
     private var staleCheck: Timer?
 
@@ -39,9 +43,30 @@ final class KeyMonitor {
 
     /// Asks for Input Monitoring (macOS shows its prompt once) and starts listening if allowed.
     func start() {
-        if !CGPreflightListenEventAccess() {
+        hadAccess = CGPreflightListenEventAccess()
+        if !hadAccess {
             _ = CGRequestListenEventAccess()
         }
+        createTap()
+    }
+
+    /// Makes the tap again if the user granted Input Monitoring after it was made.
+    /// Otherwise nothing happens.
+    func restartIfAccessGranted() {
+        guard tap != nil, !hadAccess, CGPreflightListenEventAccess() else { return }
+        removeTap()
+        hadAccess = true
+        createTap()
+    }
+
+    private func removeTap() {
+        if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
+        if let tapSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), tapSource, .commonModes) }
+        tap = nil
+        tapSource = nil
+    }
+
+    private func createTap() {
         let types: [CGEventType] = [.keyDown, .keyUp, .flagsChanged]
         let mask = types.reduce(CGEventMask(0)) { $0 | (CGEventMask(1) << $1.rawValue) }
         guard let tap = CGEvent.tapCreate(
@@ -62,6 +87,7 @@ final class KeyMonitor {
         // Without Input Monitoring macOS still gives a tap, but keeps it off and sends it no key presses.
         self.tap = tap
         let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
+        tapSource = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         setEnabled(true)
     }

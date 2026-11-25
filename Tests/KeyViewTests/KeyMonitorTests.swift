@@ -45,6 +45,13 @@ struct KeyMonitorTests {
         #expect(changes == 2) // same keyboard, nothing to do
     }
 
+    @Test func restartWithoutTapDoesNothing() throws {
+        monitor.handle(.keyDown, try event(kVK_ANSI_A))
+        monitor.restartIfAccessGranted() // start() was never called, there is no tap to remake
+        #expect(state.pressed == [key(kVK_ANSI_A)])
+        #expect(monitor.seesKeyPresses)
+    }
+
     // MARK: fn combinations
 
     @Test func fnCombinationHighlightsThePressedKey() throws {
